@@ -8,7 +8,7 @@
 #include<Utility>
 #include<algorithm>
 #include<iomanip>
-#include<list>
+#include<vector>
 #include"Token.h"
 using namespace std;
 
@@ -26,9 +26,9 @@ private:
 	string filepath;
 	string line;
 	map<string, int> reserve_word;
-	vector<string> id_list;
-	vector<string> const_list;
-	list<Token> allToken;
+	vector<string> id_vector;
+	vector<string> const_vector;
+	vector<Token> allToken;
 public:
 	Lexical_Analyzer(string _filepath)
 	{
@@ -89,5 +89,5 @@ public:
 	void Scanner();
 	void Flush();
 	void SetAllToken();
-	list<Token> GetAllToken();
+	vector<Token> GetAllToken();
 };

@@ -91,7 +91,6 @@ void Lexical_Analyzer::Scanner()
 		}
 		else
 		{
-			//ProcError(2);
 			Retract();
 		}
 	}
@@ -248,7 +247,7 @@ void Lexical_Analyzer::SetAllToken()
 	Token* ptr = new Token(strToken, code, row);
 	allToken.push_back(*ptr);
 }
-list<Token> Lexical_Analyzer::GetAllToken()
+vector<Token> Lexical_Analyzer::GetAllToken()
 {
 	return allToken;
 }

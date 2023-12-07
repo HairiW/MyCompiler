@@ -4,15 +4,19 @@
 #include<string>
 #include<fstream>
 #include<set>
-#include<list>
+#include<vector>
 #include"LexAnalyzer.h"
 #include"Token.h"
 using namespace std;
 class Syntax_Analyzer
 {
 private:
-	list<Token> allToken;
-	list<Token>::iterator it;
+	vector<Token> allToken;//保存词法分析结果
+	vector<Token>::iterator it;
+	int index;
+	AllPcode allPcode;//保存生成的Pcode
+	AllSymbol allSymbol;//符号表管理
+
 	string strToken;
 	int str_code;
 	int str_row;
@@ -21,6 +25,11 @@ private:
 	int str_row_next;
 	int error_code;
 	map<string, int> reserve_word;
+
+	int level = 0;
+	int dx = 0;
+
+	bool ErrorTag = false;
 	//部分first集
 	set<string> block_first;
 	set<string> statement_first;
@@ -94,7 +103,6 @@ public:
 		id_follow = { ";",":=",",","(",")","*","/","+","-","end","else","=","<>","<","<=",">",">=","then","do" };
 		integer_follow = { "*","/","+","-",";","end","else",",",")","=","<>","<","<=",">",">=","then","do" };
 	}
-	void OpenFile(string str);
 	void Advance();
 	void Prog();//程序
 	void Block();//块、程序体

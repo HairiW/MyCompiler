@@ -1,8 +1,12 @@
 #include"SynAnalyzer.h"
+#include"AllPcode.h"
+#include"AllSymbol.h"
 #include<map>
 #include<iostream>
 #include<sstream>
 #include<set>
+#include<string>
+#include<sstream>
 using namespace std;
 
 void Syntax_Analyzer::Advance()
@@ -68,6 +72,18 @@ void Syntax_Analyzer::Prog()
 }
 void Syntax_Analyzer::Block()
 {
+	//int dx_temp = dx;
+	dx = 3;//默认从3开始，前几位存放SL DL RA
+	int start = allSymbol.GetIndex();//本层变量声明的初始位置
+	int pos = 0;//本层过程声明在符号表中的位置
+	if (start > 0)
+	{
+		pos = allSymbol.GetLevelProc(level);
+	}
+	//设置跳转指令，跳过声明部分，后面回填
+	int cx1 = allPcode.GetAllPcodePtr();//cx1表示JMP指令需要回填在指令集中的位置
+	allPcode.Gen(Operator::JMP,0,0);
+
 	//<block> -> [<condecl>][<vardecl>][<proc>]<body>
 	if (str_code == 2)
 		Body();
@@ -112,9 +128,15 @@ void Syntax_Analyzer::Block()
 		}
 		if (strToken == "procedure")
 			Proc();
-		//while (strToken != "begin" && strToken_next != "\EOF")
-			//Advance();
+		allPcode.GetAllPcode()[cx1].SetA(allPcode.GetAllPcodePtr());
+		allPcode.Gen(Operator::INT, 0, dx);//申请空间
+		if (start != 0)
+		{
+			//若非主函数，则需要在符号表的address填入该过程在Pcode代码中的起始位置
+			allSymbol.GetAllSymbol()[pos].SetAddress(allPcode.GetAllPcodePtr() - 1);
+		}
 		Body();
+		//dx = dx_temp;
 	}
 }
 void Syntax_Analyzer::Condecl()
@@ -178,12 +200,24 @@ void Syntax_Analyzer::Condecl()
 void Syntax_Analyzer::Const()
 {
 	//<const> -> <id>:=<integer>
+	string name = strToken;
 	Advance();
 	if (strToken == ":=")
 	{
 		Advance();
 		if (str_code == 1)
+		{
+			//string to int
+			int value;
+			istringstream ss(strToken);
+			ss >> value;
+
+			if (allSymbol.isCurExist(name, level))
+				Error(15,name);//该标识符已存在
+			else
+				allSymbol.EnterCon(value, level, dx, name);
 			Advance();
+		}
 		else
 			Error(13, "");
 	}
@@ -201,6 +235,7 @@ void Syntax_Analyzer::Const()
 void Syntax_Analyzer::Vardecl()
 {
 	//<vardecl> -> var <id>{,<id>};
+	string name;
 	Advance();
 	if (str_code != 2)
 	{
@@ -214,13 +249,30 @@ void Syntax_Analyzer::Vardecl()
 		cout << endl << "同步至：" << strToken << " 继续编译中..." << endl;
 	}
 	if (str_code == 2)
+	{
 		Id();
+		name = strToken;
+		if (allSymbol.isCurExist(name, level))
+			Error(14, name);
+		else
+		{
+			allSymbol.EnterVar(level, dx, name);
+			dx++;
+		}
+	}
 	while (strToken != "procedure" && strToken != "begin" && strToken != ";")
 	{
 		while (strToken == "," && str_code_next == 2)
 		{
 			Advance();
 			Id();
+			if (allSymbol.isCurExist(name, level))
+				Error(14, name);
+			else
+			{
+				allSymbol.EnterVar(level, dx, name);
+				dx++;
+			}
 		}
 		if (strToken == "," && str_code_next != 2)
 		{
@@ -237,6 +289,13 @@ void Syntax_Analyzer::Vardecl()
 		{
 			Error(4, ",");
 			Id();
+			if (allSymbol.isCurExist(name, level))
+				Error(14, name);
+			else
+			{
+				allSymbol.EnterVar(level, dx, name);
+				dx++;
+			}
 		}
 	}
 
@@ -256,27 +315,14 @@ void Syntax_Analyzer::Vardecl()
 		}
 		cout << endl << "同步至：" << strToken << " 继续编译中..." << endl;
 	}
-	/*while (strToken != "," && strToken != ";")
-	{
-		if (str_code == 2)
-		{
-			Error(4, ",");//缺少,
-			Id();
-		}
-		else
-			Advance();
-	}
-	if (strToken == ";")
-		Advance();
-	else
-	{
-		Error(3, ";");//缺少;
-		while (strToken != "procedure" && strToken != "begin")
-			Advance();
-	}*/
 }
 void Syntax_Analyzer::Proc()
-{
+{ 
+	//procedure 与上一 block 为同一层级
+	int dx_temp = dx;
+	dx = 3;
+	int para_cnt = 0;
+
 	bool proc_id = false;
 	bool l_bracket = false;
 	//<proc> -> procedure <id> ([<id>{,<id>}]);<block>{;<proc>}
@@ -295,6 +341,14 @@ void Syntax_Analyzer::Proc()
 	else
 	{
 		Id();
+		string name = strToken;
+		if (allSymbol.isCurExist(name, level))
+			Error(14, name);
+		else
+		{
+			allSymbol.EnterProc(level, allPcode.GetAllPcodePtr() - 1, name);
+			level++;
+		}
 		proc_id = true;
 	}
 	if (proc_id == false && str_code == 2)
@@ -322,12 +376,30 @@ void Syntax_Analyzer::Proc()
 			if (str_code == 2 && strToken_next == ",")
 			{
 				Id();
+				string name = strToken;
+				if (allSymbol.isCurExist(name, level))
+					Error(14, name);
+				else
+				{
+					allSymbol.EnterVar(level, dx, name);
+					dx++;
+					para_cnt++;
+				}
 				Advance();
 			}
 			else if (str_code == 2 && str_code_next == 2)
 			{
 				Error(4, ",");//缺少,
 				Id();
+				string name = strToken;
+				if (allSymbol.isCurExist(name, level))
+					Error(14, name);
+				else
+				{
+					allSymbol.EnterVar(level, dx, name);
+					dx++;
+					para_cnt++;
+				}
 			}
 			else if (strToken == ",")
 			{
@@ -335,7 +407,18 @@ void Syntax_Analyzer::Proc()
 				Advance();
 			}
 			else if (str_code == 2 && strToken_next == ")")
+			{
 				Id();
+				string name = strToken;
+				if (allSymbol.isCurExist(name, level))
+					Error(14, name);
+				else
+				{
+					allSymbol.EnterVar(level, dx, name);
+					dx++;
+					para_cnt++;
+				}
+			}
 		}
 	}
 	if (strToken == ")" || strToken == ";")
@@ -347,18 +430,9 @@ void Syntax_Analyzer::Proc()
 		else
 			Advance();
 		Advance();
-		/*if (!block_first.count(strToken))
-		{
-			Error(12, "");//多余字符
-			cout << "正在同步中，跳过：";
-			while (!block_first.count(strToken))
-			{
-				cout << strToken << " ";
-				Advance();
-			}
-			cout << endl << "同步至：" << strToken << " 继续编译中..." << endl;
-		}*/
 		Block();
+		dx = dx_temp;//恢复dx
+		level--;//恢复level
 		while (strToken == ";" && strToken_next == "procedure")
 		{
 			Advance();
@@ -730,6 +804,7 @@ void Syntax_Analyzer::Id()
 }
 int Syntax_Analyzer::Error(int ecode, string str)
 {
+	ErrorTag = true;
 	if (ecode == 1)//保留字拼写错误
 		cout << "line:" << str_row << "	关键字" << str << "拼写错误！" << endl;
 	else if (ecode == 2)//缺少保留字
@@ -756,6 +831,8 @@ int Syntax_Analyzer::Error(int ecode, string str)
 		cout << "line:" << str_row << "	错误字符: " << str << endl;
 	else if (ecode == 13)
 		cout << "line:" << str_row << "	缺少数字！" << endl;
+	else if (ecode == 14)
+		cout << "line:" << str_row << "该标识符" << str << "已存在！" << endl;
 	else
 	{
 		cout << "终止编译" << endl;
