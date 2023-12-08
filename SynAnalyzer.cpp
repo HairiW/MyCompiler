@@ -128,6 +128,7 @@ void Syntax_Analyzer::Block()
 		}
 		if (strToken == "procedure")
 			Proc();
+		//进入block之前回填block开头的JMP指令
 		allPcode.GetAllPcode()[cx1].SetA(allPcode.GetAllPcodePtr());
 		allPcode.Gen(Operator::INT, 0, dx);//申请空间
 		if (start != 0)
@@ -136,6 +137,7 @@ void Syntax_Analyzer::Block()
 			allSymbol.GetAllSymbol()[pos].SetAddress(allPcode.GetAllPcodePtr() - 1);
 		}
 		Body();
+		allPcode.Gen(Operator::OPR, 0, 0);
 		//dx = dx_temp;
 	}
 }
@@ -537,13 +539,24 @@ void Syntax_Analyzer::Statement()
 					 |<body>
 					 |read (<id>{，<id>})
 					 |write (<exp>{,<exp>})*/
+	string name;
+	int jmp_pos;//用于回填while语句跳转
 	if (str_code == 2 && (strToken_next == ":=" || strToken_next == "="))
 	{
+		//<id> : = <exp>
+		name = strToken;
 		Id();
 		if (strToken == ":=")
 		{
 			Advance();
 			Exp();
+			if (!allSymbol.isPreExist(name, level))
+				Error(15, name);
+			PerSymbol temp = allSymbol.GetSymbol(name);
+			if (temp.GetType() == allSymbol.GetVar())
+				allPcode.Gen(Operator::STO, level - temp.GetLevel(), temp.GetAddress());
+			else
+				Error(16, name);
 		}
 		else if (strToken == "=")
 		{
@@ -571,13 +584,15 @@ void Syntax_Analyzer::Statement()
 			if (strToken == "if") tag = 1;
 			else tag = 2;
 			Advance();
+			if (strToken == "while")
+				jmp_pos = allPcode.GetAllPcodePtr();
 			LExp();
 		}
 		else if (strToken == "call")
 		{
 			tag == 3;
 			Advance();
-			Id();
+			//Id();
 		}
 		else if (strToken == "begin")
 		{
@@ -594,6 +609,7 @@ void Syntax_Analyzer::Statement()
 
 		if (strToken == "then")
 		{
+			//if <lexp> then <statement>[else <statement>]
 			if (!tag)
 				Error(2, "if");
 			Advance();
@@ -602,19 +618,39 @@ void Syntax_Analyzer::Statement()
 				Error(12, strToken);
 				Advance();
 			}
+
+			int cx1 = allPcode.GetAllPcodePtr();//表示JPC指令需要回填在指令集中的位置
+			allPcode.Gen(Operator::JPC, 0, 0);//if语句先做JPC跳转到else的地方 后面回填
 			Statement();
+			//回填if语句不满足执行else的地址
+			allPcode.GetAllPcode()[cx1].SetA(allPcode.GetAllPcodePtr());
+
 			if (strToken == "else")
 			{
+
+				int cx2 = allPcode.GetAllPcodePtr();
+				allPcode.Gen(Operator::JMP, 0, 0);
+
 				Advance();
 				Statement();
+
+				//回填if语句结束的地址
+				allPcode.GetAllPcode()[cx2].SetA(allPcode.GetAllPcodePtr());
 			}
 		}
 		else if (strToken == "do")
 		{
+			//while <lexp> do <statement>
+			int pos = allPcode.GetAllPcodePtr();//记录JPC指令回填位置
+			allPcode.Gen(Operator::JPC, 0, 0);
+
 			if (!tag)
 				Error(2, "while");
 			Advance();
 			Statement();
+
+			allPcode.Gen(Operator::JMP, 0, jmp_pos);
+			allPcode.GetAllPcode()[pos].SetA(allPcode.GetAllPcodePtr());
 		}
 		else if (strToken == "(" || statement_first.count(strToken) || str_code == 2)
 		{
@@ -638,19 +674,29 @@ void Syntax_Analyzer::Statement()
 				Error(2, "do");
 				Statement();
 			}
-			else if (tag == 3)
+			else if (tag == 3)//call <id> ([<exp>{,<exp>}])
 			{
+				name = strToken;
+				int _a = 3;//FLA中a的值，默认从3开始
 				if (str_code == 2 && strToken_next == "(")
 				{
 					Id();
 					Advance();
 					Exp();
+
+					//每次Exp()退出后传一个参数
+					allPcode.Gen(Operator::STO, -1, _a);
+					_a++;
+
 					while (strToken != ")")
 					{
 						if (strToken == "," && (exp_first.count(strToken_next) || str_code_next == 2))
 						{
 							Advance();
 							Exp();
+
+							allPcode.Gen(Operator::STO, -1, _a);
+							_a++;
 						}
 						else
 						{
@@ -659,7 +705,18 @@ void Syntax_Analyzer::Statement()
 						}
 					}
 					if (strToken == ")")
+					{
 						Advance();
+
+						if (!allSymbol.isPreExist(name, level))
+							Error(15, name);
+						else if (allSymbol.isPreExist(name, level) == allSymbol.GetProc())
+						{
+							PerSymbol temp = allSymbol.GetSymbol(name);
+							allPcode.Gen(Operator::CAL, level - temp.GetLevel(), temp.GetAddress());
+						}
+						else Error(17, name);
+					}
 					else
 						Error(6, ")");
 				}
@@ -669,9 +726,23 @@ void Syntax_Analyzer::Statement()
 				Error(7, "begin");
 				Statement();
 			}
-			else if (tag == 5)
+			else if (tag == 5)//read (<id>{，<id>})
 			{
 				Advance();
+
+				string name = strToken;
+				if (!allSymbol.isPreExist(name, level))
+					Error(15, name);
+				else
+				{
+					PerSymbol temp = allSymbol.GetSymbol(name);
+					if (temp.GetType() == allSymbol.GetVar())
+					{
+						allPcode.Gen(Operator::RED, 0, 0);
+						allPcode.Gen(Operator::STO, level - temp.GetLevel(), temp.GetAddress());
+					}
+				}
+				
 				Id();
 				if (strToken != ")")
 				{
@@ -680,10 +751,36 @@ void Syntax_Analyzer::Statement()
 						if (strToken == "," && str_code_next == 2)
 						{
 							Advance();
+							string name = strToken;
+							if (!allSymbol.isPreExist(name, level))
+								Error(15, name);
+							else
+							{
+								PerSymbol temp = allSymbol.GetSymbol(name);
+								if (temp.GetType() == allSymbol.GetVar())
+								{
+									allPcode.Gen(Operator::RED, 0, 0);
+									allPcode.Gen(Operator::STO, level - temp.GetLevel(), temp.GetAddress());
+								}
+							}
 							Id();
 						}
 						else if (str_code == 2 && strToken_next == ")")
+						{
+							string name = strToken;
+							if (!allSymbol.isPreExist(name, level))
+								Error(15, name);
+							else
+							{
+								PerSymbol temp = allSymbol.GetSymbol(name);
+								if (temp.GetType() == allSymbol.GetVar())
+								{
+									allPcode.Gen(Operator::RED, 0, 0);
+									allPcode.Gen(Operator::STO, level - temp.GetLevel(), temp.GetAddress());
+								}
+							}
 							Id();
+						}
 						else
 						{
 							Error(12, strToken);
@@ -693,10 +790,11 @@ void Syntax_Analyzer::Statement()
 				}
 				Advance();
 			}
-			else if (tag == 6)
+			else if (tag == 6)//write (<exp>{,<exp>})
 			{
 				Advance();
 				Exp();
+				allPcode.Gen(Operator::WRT, 0, 0);
 				if (strToken != ")")
 				{
 					while (strToken != ")")
@@ -704,7 +802,8 @@ void Syntax_Analyzer::Statement()
 						if (strToken == "," && (exp_first.count(strToken_next) || str_code_next == 2))
 						{
 							Advance();
-							Id();
+							Exp();
+							allPcode.Gen(Operator::WRT, 0, 0);
 						}
 						else
 						{
@@ -713,6 +812,7 @@ void Syntax_Analyzer::Statement()
 						}
 					}
 				}
+				allPcode.Gen(Operator::OPR, 0, 13);//输出换行符
 				Advance();
 			}
 		}
@@ -725,7 +825,8 @@ void Syntax_Analyzer::LExp()
 	{
 		while (!exp_first.count(strToken) && str_code != 1 && str_code != 2)
 			Advance();
-		Exp();
+		Exp();//Exp()退出后得到的结果放在栈顶
+		allPcode.Gen(Operator::OPR, 0, 6);
 	}
 	else
 	{
@@ -745,41 +846,76 @@ void Syntax_Analyzer::LExp()
 void Syntax_Analyzer::Exp()
 {
 	//<exp> → [+|-]<term>{<aop><term>}
+	string sym;
 	while (!exp_first.count(strToken) && str_code != 1 && str_code != 2)
 		Advance();
+	sym = strToken;
 	if (strToken == "+" || strToken == "-")
 		Advance();
 	Term();
+	if (sym == "-")
+		allPcode.Gen(Operator::OPR, 0, 1);
 	while (strToken == "+" || strToken == "-")
 	{
+		sym = strToken;
 		Advance();
 		Term();
+		if (sym == "+")
+			allPcode.Gen(Operator::OPR, 0, 2);
+		else if (sym == "-")
+			allPcode.Gen(Operator::OPR, 0, 3);
 	}
 }
 void Syntax_Analyzer::Term()
 {
 	//<term> → <factor>{<mop><factor>}
+	string sym;
 	while (str_code != 1 && str_code != 2 && strToken != "(")
 		Advance();
 	Factor();
 	while (strToken == "*" || strToken == "/")
 	{
+		sym = strToken;
 		Advance();
 		Factor();
+		if (sym == "*")
+			allPcode.Gen(Operator::OPR, 0, 4);
+		else if (sym == "/")
+			allPcode.Gen(Operator::OPR, 0, 5);
 	}
 }
 void Syntax_Analyzer::Factor()
 {
 	//<factor>→<id>|<integer>|(<exp>)
+	string name;
 	while (str_code != 1 && str_code != 2 && strToken != "(")
 		Advance();
-	if (str_code == 2)
-		Id();
-	else if (str_code == 1)
+	if (str_code == 2)//<id>
 	{
+		name = strToken;
+		Id();
+		if (!allSymbol.isPreExist(name, level))
+			Error(15, name);
+		else
+		{
+			PerSymbol temp = allSymbol.GetSymbol(name);
+			if (temp.GetType() == allSymbol.GetCon())//常量
+				allPcode.Gen(Operator::LIT, 0, temp.GetValue());
+			else if (temp.GetType() == allSymbol.GetVar())//变量
+				allPcode.Gen(Operator::LOD, level - temp.GetLevel(), temp.GetAddress());
+			else if (temp.GetType() == allSymbol.GetProc())//过程
+				Error(18, name);
+		}
+	}
+	else if (str_code == 1)//<integer>
+	{
+		int value;
+		istringstream ss(strToken);
+		ss >> value;
+		allPcode.Gen(Operator::LIT, 0, value);
 		Advance();
 	}
-	else if (strToken == "(")
+	else if (strToken == "(")//(<exp>)
 	{
 		Advance();
 		Exp();
@@ -788,8 +924,36 @@ void Syntax_Analyzer::Factor()
 void Syntax_Analyzer::Lop()
 {
 	//<lop> → =|<>|<|<=|>|>=
-	if (strToken == "=" || strToken == "<>" || strToken == "<" || strToken == "<=" || strToken == ">" || strToken == ">=")
+	if (strToken == "="/* || strToken == "<>" || strToken == "<" || strToken == "<=" || strToken == ">" || strToken == ">="*/)
+	{
+		allPcode.Gen(Operator::OPR, 0, 7);
 		Advance();
+	}
+	else if (strToken == "<>")
+	{
+		allPcode.Gen(Operator::OPR, 0, 8);
+		Advance();
+	}
+	else if (strToken == "<")
+	{
+		allPcode.Gen(Operator::OPR, 0, 9);
+		Advance();
+	}
+	else if (strToken == "<=")
+	{
+		allPcode.Gen(Operator::OPR, 0, 12);
+		Advance();
+	}
+	else if (strToken == ">")
+	{
+		allPcode.Gen(Operator::OPR, 0, 11);
+		Advance();
+	}
+	else if (strToken == ">=")
+	{
+		allPcode.Gen(Operator::OPR, 0, 10);
+		Advance();
+	}
 	else
 	{
 		Error(12, strToken);
@@ -832,7 +996,15 @@ int Syntax_Analyzer::Error(int ecode, string str)
 	else if (ecode == 13)
 		cout << "line:" << str_row << "	缺少数字！" << endl;
 	else if (ecode == 14)
-		cout << "line:" << str_row << "该标识符" << str << "已存在！" << endl;
+		cout << "line:" << str_row << "	该标识符：" << str << "	已存在！" << endl;
+	else if (ecode == 15)
+		cout << "line:" << str_row << "	该标识符：" << str << "	不存在！" << endl;
+	else if (ecode == 16)
+		cout << "line:" << str_row << "	该标识符：" << str << "	不是Var类型！" << endl;
+	else if (ecode == 17)
+		cout << "line:" << str_row << "	过程：" << str << "	未定义！" << endl;
+	else if(ecode == 18)
+		cout << "line:" << str_row << "	参数：" << str << "	类型错误！" << endl;
 	else
 	{
 		cout << "终止编译" << endl;
