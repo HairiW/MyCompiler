@@ -61,22 +61,6 @@ public:
 	{
 		PerPcode* temp = new PerPcode(F, L, A);
 		allPcode.push_back(*temp);
-		string op;
-		switch (F)
-		{
-		case Operator::LIT: {op = "LIT"; break; }
-		case Operator::LOD: {op = "LOD"; break; }
-		case Operator::STO: {op = "STO"; break; }
-		case Operator::CAL: {op = "CAL"; break; }
-		case Operator::INT: {op = "INT"; break; }
-		case Operator::JMP: {op = "JMP"; break; }
-		case Operator::JPC: {op = "JPC"; break; }
-		case Operator::WRT: {op = "WRT"; break; }
-		case Operator::RED: {op = "RED"; break; }
-		case Operator::OPR: {op = "OPR"; break; }
-		default:break;
-		}
-		rf << op << " " << L << " " << A << endl;
 	}
 	void Openfile(string _rfPath)
 	{
@@ -85,6 +69,36 @@ public:
 		{
 			cout << "文件打开失败！" << endl;
 			exit(0);
+		}
+	}
+	void SetA(int i, int A)
+	{
+		allPcode[i].SetA(A);
+	}
+	int GetA(int i)
+	{
+		return allPcode[i].GetA();
+	}
+	void Output()
+	{
+		for (int i = 0; i < allPcode.size(); i++)
+		{
+			string op;
+			switch (allPcode[i].GetF())
+			{
+			case Operator::LIT: {op = "LIT"; break; }
+			case Operator::LOD: {op = "LOD"; break; }
+			case Operator::STO: {op = "STO"; break; }
+			case Operator::CAL: {op = "CAL"; break; }
+			case Operator::INT: {op = "INT"; break; }
+			case Operator::JMP: {op = "JMP"; break; }
+			case Operator::JPC: {op = "JPC"; break; }
+			case Operator::WRT: {op = "WRT"; break; }
+			case Operator::RED: {op = "RED"; break; }
+			case Operator::OPR: {op = "OPR"; break; }
+			default:break;
+			}
+			rf << op << " " << allPcode[i].GetL() << " " << allPcode[i].GetA() << endl;
 		}
 	}
 };

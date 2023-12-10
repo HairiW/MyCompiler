@@ -72,8 +72,9 @@ void Syntax_Analyzer::Prog()
 }
 void Syntax_Analyzer::Block()
 {
+	//<block> -> [<condecl>][<vardecl>][<proc>]<body>
+	
 	//int dx_temp = dx;
-	dx = 3;//默认从3开始，前几位存放SL DL RA
 	int start = allSymbol.GetIndex();//本层变量声明的初始位置
 	int pos = 0;//本层过程声明在符号表中的位置
 	if (start > 0)
@@ -84,9 +85,20 @@ void Syntax_Analyzer::Block()
 	int cx1 = allPcode.GetAllPcodePtr();//cx1表示JMP指令需要回填在指令集中的位置
 	allPcode.Gen(Operator::JMP,0,0);
 
-	//<block> -> [<condecl>][<vardecl>][<proc>]<body>
+
 	if (str_code == 2)
+	{
+		//进入block之前回填block开头的JMP指令
+		allPcode.SetA(cx1, allPcode.GetAllPcodePtr());
+		allPcode.Gen(Operator::INT, 0, dx);//申请空间
+		if (start != 0)
+		{
+			//若非主函数，则需要在符号表的address填入该过程在Pcode代码中的起始位置
+			allSymbol.GetAllSymbol()[pos].SetAddress(allPcode.GetAllPcodePtr() - 1);
+		}
 		Body();
+		allPcode.Gen(Operator::OPR, 0, 0);
+	}
 	else
 	{
 		if (!block_first.count(strToken))
@@ -126,10 +138,18 @@ void Syntax_Analyzer::Block()
 			}
 			cout << endl << "同步至：" << strToken << "	继续同步中..." << endl;
 		}
+
 		if (strToken == "procedure")
 			Proc();
 		//进入block之前回填block开头的JMP指令
-		allPcode.GetAllPcode()[cx1].SetA(allPcode.GetAllPcodePtr());
+
+		//cout << allPcode.GetAllPcodePtr() << endl;
+
+		//allPcode.GetAllPcode()[cx1].SetA(allPcode.GetAllPcodePtr());
+		allPcode.SetA(cx1, allPcode.GetAllPcodePtr());
+
+		//cout << allPcode.GetA(cx1) << endl;
+
 		allPcode.Gen(Operator::INT, 0, dx);//申请空间
 		if (start != 0)
 		{
@@ -347,8 +367,9 @@ void Syntax_Analyzer::Proc()
 		if (allSymbol.isCurExist(name, level))
 			Error(14, name);
 		else
-			allSymbol.EnterProc(level, allPcode.GetAllPcodePtr() - 1, name);
+			allSymbol.EnterProc(level, allPcode.GetAllPcodePtr(), name);
 		proc_id = true;
+		level++;
 	}
 	if (proc_id == false && str_code == 2)
 	{
@@ -429,7 +450,7 @@ void Syntax_Analyzer::Proc()
 		else
 			Advance();
 		Advance();
-		level++;
+		//level++;
 		Block();
 		dx = dx_temp;//恢复dx
 		level--;//恢复level
@@ -581,9 +602,9 @@ void Syntax_Analyzer::Statement()
 		{
 			if (strToken == "if") tag = 1;
 			else tag = 2;
-			Advance();
 			if (strToken == "while")
 				jmp_pos = allPcode.GetAllPcodePtr();
+			Advance();
 			LExp();
 		}
 		else if (strToken == "call")
@@ -620,21 +641,24 @@ void Syntax_Analyzer::Statement()
 			int cx1 = allPcode.GetAllPcodePtr();//表示JPC指令需要回填在指令集中的位置
 			allPcode.Gen(Operator::JPC, 0, 0);//if语句先做JPC跳转到else的地方 后面回填
 			Statement();
-			//回填if语句不满足执行else的地址
-			allPcode.GetAllPcode()[cx1].SetA(allPcode.GetAllPcodePtr());
 
 			if (strToken == "else")
 			{
 
 				int cx2 = allPcode.GetAllPcodePtr();
 				allPcode.Gen(Operator::JMP, 0, 0);
+				//回填if语句不满足执行else的地址
+				allPcode.SetA(cx1, allPcode.GetAllPcodePtr());
 
 				Advance();
 				Statement();
 
 				//回填if语句结束的地址
-				allPcode.GetAllPcode()[cx2].SetA(allPcode.GetAllPcodePtr());
+				//allPcode.GetAllPcode()[cx2].SetA(allPcode.GetAllPcodePtr());
+				allPcode.SetA(cx2, allPcode.GetAllPcodePtr());
 			}
+			else
+				allPcode.SetA(cx1, allPcode.GetAllPcodePtr());//回填if语句不满足执行else的地址
 		}
 		else if (strToken == "do")
 		{
@@ -648,7 +672,8 @@ void Syntax_Analyzer::Statement()
 			Statement();
 
 			allPcode.Gen(Operator::JMP, 0, jmp_pos);
-			allPcode.GetAllPcode()[pos].SetA(allPcode.GetAllPcodePtr());
+			//allPcode.GetAllPcode()[pos].SetA(allPcode.GetAllPcodePtr());
+			allPcode.SetA(pos, allPcode.GetAllPcodePtr());
 		}
 		else if (strToken == "(" || statement_first.count(strToken) || str_code == 2)
 		{
@@ -692,7 +717,6 @@ void Syntax_Analyzer::Statement()
 						{
 							Advance();
 							Exp();
-
 							allPcode.Gen(Operator::STO, -1, _a);
 							_a++;
 						}
@@ -985,4 +1009,8 @@ int Syntax_Analyzer::Error(int ecode, string str)
 		cout << "终止编译" << endl;
 		exit(0);
 	}
+}
+void Syntax_Analyzer::Output()
+{
+	allPcode.Output();
 }

@@ -24,12 +24,30 @@
     <ClInclude Include="SynAnalyzer.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="PerSymbol.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="AllSymbol.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Operator.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="PerPcode.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="AllPcode.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="LexAnalyzer.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="SynAnalyzer.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="MyCompiler.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

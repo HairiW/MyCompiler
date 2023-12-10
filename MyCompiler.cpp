@@ -10,5 +10,6 @@ int main()
 	resultPath = "result_code.txt";
 	Syntax_Analyzer sa(filePath, resultPath);
 	sa.Prog();
+	sa.Output();
 	return 0;
 }

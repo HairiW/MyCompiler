@@ -29,7 +29,7 @@ private:
 	map<string, int> reserve_word;
 
 	int level = 0;
-	int dx = 0;
+	int dx = 3;//默认从3开始，前几位存放SL DL RA
 
 	bool ErrorTag = false;
 	//部分first集
@@ -122,4 +122,5 @@ public:
 	void Lop();//关系运算符
 	void Id();//标识符
 	int	Error(int ecode, string str);
+	void Output();
 };

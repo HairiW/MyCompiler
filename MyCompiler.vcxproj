@@ -139,12 +139,18 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="AllPcode.h" />
+    <ClInclude Include="AllSymbol.h" />
     <ClInclude Include="LexAnalyzer.h" />
+    <ClInclude Include="Operator.h" />
+    <ClInclude Include="PerPcode.h" />
+    <ClInclude Include="PerSymbol.h" />
     <ClInclude Include="SynAnalyzer.h" />
     <ClInclude Include="Token.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="LexAnalyzer.cpp" />
+    <ClCompile Include="MyCompiler.cpp" />
     <ClCompile Include="SynAnalyzer.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
