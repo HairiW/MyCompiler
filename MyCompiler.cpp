@@ -5,5 +5,10 @@
 using namespace std;
 int main()
 {
+	string filePath, resultPath;
+	filePath = "origin_code.txt";
+	resultPath = "result_code.txt";
+	Syntax_Analyzer sa(filePath, resultPath);
+	sa.Prog();
 	return 0;
 }

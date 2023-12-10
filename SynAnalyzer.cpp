@@ -12,7 +12,7 @@ using namespace std;
 void Syntax_Analyzer::Advance()
 {
 	if (strToken_next == "\EOF")
-		strToken == strToken;
+		strToken = strToken;
 	else
 	{
 		strToken = strToken_next;
@@ -252,8 +252,8 @@ void Syntax_Analyzer::Vardecl()
 	}
 	if (str_code == 2)
 	{
-		Id();
 		name = strToken;
+		Id();
 		if (allSymbol.isCurExist(name, level))
 			Error(14, name);
 		else
@@ -267,13 +267,13 @@ void Syntax_Analyzer::Vardecl()
 		while (strToken == "," && str_code_next == 2)
 		{
 			Advance();
-			Id();
-			if (allSymbol.isCurExist(name, level))
-				Error(14, name);
+			if (allSymbol.isCurExist(strToken, level))
+				Error(14, strToken);
 			else
 			{
-				allSymbol.EnterVar(level, dx, name);
+				allSymbol.EnterVar(level, dx, strToken);
 				dx++;
+				Id();
 			}
 		}
 		if (strToken == "," && str_code_next != 2)
@@ -342,15 +342,12 @@ void Syntax_Analyzer::Proc()
 	}
 	else
 	{
-		Id();
 		string name = strToken;
+		Id();	
 		if (allSymbol.isCurExist(name, level))
 			Error(14, name);
 		else
-		{
 			allSymbol.EnterProc(level, allPcode.GetAllPcodePtr() - 1, name);
-			level++;
-		}
 		proc_id = true;
 	}
 	if (proc_id == false && str_code == 2)
@@ -377,8 +374,8 @@ void Syntax_Analyzer::Proc()
 		{
 			if (str_code == 2 && strToken_next == ",")
 			{
-				Id();
 				string name = strToken;
+				Id();
 				if (allSymbol.isCurExist(name, level))
 					Error(14, name);
 				else
@@ -392,8 +389,8 @@ void Syntax_Analyzer::Proc()
 			else if (str_code == 2 && str_code_next == 2)
 			{
 				Error(4, ",");//缺少,
-				Id();
 				string name = strToken;
+				Id();
 				if (allSymbol.isCurExist(name, level))
 					Error(14, name);
 				else
@@ -410,8 +407,8 @@ void Syntax_Analyzer::Proc()
 			}
 			else if (str_code == 2 && strToken_next == ")")
 			{
-				Id();
 				string name = strToken;
+				Id();
 				if (allSymbol.isCurExist(name, level))
 					Error(14, name);
 				else
@@ -432,6 +429,7 @@ void Syntax_Analyzer::Proc()
 		else
 			Advance();
 		Advance();
+		level++;
 		Block();
 		dx = dx_temp;//恢复dx
 		level--;//恢复level
@@ -540,7 +538,7 @@ void Syntax_Analyzer::Statement()
 					 |read (<id>{，<id>})
 					 |write (<exp>{,<exp>})*/
 	string name;
-	int jmp_pos;//用于回填while语句跳转
+	int jmp_pos = 0;//用于回填while语句跳转
 	if (str_code == 2 && (strToken_next == ":=" || strToken_next == "="))
 	{
 		//<id> : = <exp>
@@ -590,14 +588,14 @@ void Syntax_Analyzer::Statement()
 		}
 		else if (strToken == "call")
 		{
-			tag == 3;
+			tag = 3;
 			Advance();
 			//Id();
 		}
 		else if (strToken == "begin")
 		{
-			tag == 4;
-			Advance();
+			tag = 4;
+			//Advance();
 			Body();
 		}
 		else if (strToken == "read" || strToken == "write")
@@ -710,10 +708,11 @@ void Syntax_Analyzer::Statement()
 
 						if (!allSymbol.isPreExist(name, level))
 							Error(15, name);
-						else if (allSymbol.isPreExist(name, level) == allSymbol.GetProc())
+						else if (allSymbol.isPreExist(name, level))
 						{
 							PerSymbol temp = allSymbol.GetSymbol(name);
-							allPcode.Gen(Operator::CAL, level - temp.GetLevel(), temp.GetAddress());
+							if(temp.GetType() == allSymbol.GetProc())
+								allPcode.Gen(Operator::CAL, level - temp.GetLevel(), temp.GetAddress());
 						}
 						else Error(17, name);
 					}
@@ -835,12 +834,21 @@ void Syntax_Analyzer::LExp()
 		{
 			Advance();
 		}
+		string op = strToken;
 		Lop();
 		while (!lop_follow.count(strToken) && str_code != 1 && str_code != 2)
 		{
 			Advance();
 		}
 		Exp();
+
+		if (op == "=") allPcode.Gen(Operator::OPR, 0, 7);
+		else if (op == "<>") allPcode.Gen(Operator::OPR, 0, 8);
+		else if (op == "<") allPcode.Gen(Operator::OPR, 0, 9);
+		else if (op == "<=")	allPcode.Gen(Operator::OPR, 0, 12);
+		else if (op == ">")	allPcode.Gen(Operator::OPR, 0, 11);
+		else if (op == ">=")	allPcode.Gen(Operator::OPR, 0, 10);
+		else Error(12, op);
 	}
 }
 void Syntax_Analyzer::Exp()
@@ -924,41 +932,8 @@ void Syntax_Analyzer::Factor()
 void Syntax_Analyzer::Lop()
 {
 	//<lop> → =|<>|<|<=|>|>=
-	if (strToken == "="/* || strToken == "<>" || strToken == "<" || strToken == "<=" || strToken == ">" || strToken == ">="*/)
-	{
-		allPcode.Gen(Operator::OPR, 0, 7);
+	if (strToken == "=" || strToken == "<>" || strToken == "<" || strToken == "<=" || strToken == ">" || strToken == ">=")
 		Advance();
-	}
-	else if (strToken == "<>")
-	{
-		allPcode.Gen(Operator::OPR, 0, 8);
-		Advance();
-	}
-	else if (strToken == "<")
-	{
-		allPcode.Gen(Operator::OPR, 0, 9);
-		Advance();
-	}
-	else if (strToken == "<=")
-	{
-		allPcode.Gen(Operator::OPR, 0, 12);
-		Advance();
-	}
-	else if (strToken == ">")
-	{
-		allPcode.Gen(Operator::OPR, 0, 11);
-		Advance();
-	}
-	else if (strToken == ">=")
-	{
-		allPcode.Gen(Operator::OPR, 0, 10);
-		Advance();
-	}
-	else
-	{
-		Error(12, strToken);
-		Advance();
-	}
 }
 void Syntax_Analyzer::Id()
 {

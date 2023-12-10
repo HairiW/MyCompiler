@@ -12,6 +12,15 @@ private:
 	string name;//常量、变量、过程名
 public:
 	//常量专用构造函数
+	PerSymbol(const PerSymbol &obj)
+	{
+		type = obj.type;
+		value = obj.value;
+		level = obj.level;
+		address = obj.address;
+		size = obj.size;
+		name = obj.name;
+	}
 	PerSymbol(int _type,int _value,int _level,int _address,int _size,string _name)
 	{
 		type = _type;

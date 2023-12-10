@@ -11,6 +11,11 @@ private:
 	int proc = 3;	//过程
 	int index = 0;
 public:
+	AllSymbol(){}
+	AllSymbol(const AllSymbol &obj)
+	{
+		allSymbol = obj.allSymbol;
+	}
 	//插入常量
 	void EnterCon(int value, int level, int address, string name)
 	{
@@ -45,7 +50,7 @@ public:
 	//在之前的层数中查找符号是否存在
 	bool isPreExist(string name, int level)
 	{
-		for (int ptr = allSymbol.size() - 1; ptr >= 0; ptr--)
+		for (int ptr = 0; ptr < allSymbol.size(); ptr++)
 		{
 			if (allSymbol[ptr].GetName() == name && allSymbol[ptr].GetLevel() <= level)
 				return true;

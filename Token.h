@@ -14,6 +14,12 @@ public:
 		type = -1;
 		line = -1;
 	}
+	Token(const Token& obj)
+	{
+		strToken = obj.strToken;
+		type = obj.type;
+		line = obj.line;
+	}
 	Token(string _strToken, int _type, int _line)
 	{
 		strToken = _strToken;

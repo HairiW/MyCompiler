@@ -21,7 +21,6 @@ private:
 	int const_cnt;
 	int row;
 	ifstream file;
-	fstream result_file;
 	string strToken;
 	string filepath;
 	string line;
@@ -73,7 +72,6 @@ public:
 	~Lexical_Analyzer()
 	{
 		file.close();
-		result_file.close();
 	}
 	void GetPath(string str);
 	void OpenFile();

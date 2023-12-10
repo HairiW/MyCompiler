@@ -6,6 +6,8 @@
 #include<set>
 #include<vector>
 #include"LexAnalyzer.h"
+#include"AllSymbol.h"
+#include"AllPcode.h"
 #include"Token.h"
 using namespace std;
 class Syntax_Analyzer
@@ -45,12 +47,13 @@ private:
 	set<string> id_follow;
 	set<string> integer_follow;
 public:
-	Syntax_Analyzer(string _filepath)
+	Syntax_Analyzer(string _filepath, string _resultPath)
 	{
 		Lexical_Analyzer la(_filepath);
 		la.Proc();
 		allToken = la.GetAllToken();
 		it = allToken.begin();
+		allPcode.Openfile(_resultPath);
 		strToken = "";
 		str_code = -1;
 		str_row = -1;
