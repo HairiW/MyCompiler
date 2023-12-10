@@ -68,7 +68,7 @@ public:
 			{
 				//LOD l a 将变量值取到栈顶，a为偏移量，l为层差
 				//根据 lsp(基地址) + a(偏移量) 取出变量的值
-				dataStack[top] = dataStack[curPcode.GetA() + GetLsp(sp, curPcode.GetL())];
+				dataStack[top] = dataStack[curPcode.GetA() + GetSL(sp, curPcode.GetL())];
 				top++;
 			}
 			else if (curPcode.GetF() == Operator::STO)
@@ -77,7 +77,7 @@ public:
 				if (curPcode.GetL() == -1)
 					dataStack[curPcode.GetA() + top - 1] = dataStack[top - 1];
 				else
-					dataStack[curPcode.GetA() + GetLsp(sp, curPcode.GetL())] = dataStack[top - 1];
+					dataStack[curPcode.GetA() + GetSL(sp, curPcode.GetL())] = dataStack[top - 1];
 				top--;
 			}
 			else if (curPcode.GetF() == Operator::CAL)
@@ -87,7 +87,7 @@ public:
 				//基地址sp变为此时栈顶top，npc指向要跳转的地方
 				//产生INT的语句会修改top值
 				dataStack[top] = sp;//保存lsp
-				dataStack[top + 1] = GetLsp(sp, curPcode.GetL());//保存静态链
+				dataStack[top + 1] = GetSL(sp, curPcode.GetL());//保存静态链
 				dataStack[top + 2] = npc;//保存返回地址
 				sp = top;//更新sp
 				npc = curPcode.GetA();//npc指向跳转目标
@@ -114,7 +114,7 @@ public:
 				cout << dataStack[top - 1];
 				top--;
 			}
-			else if (curPcode.GetF() == Operator::RED)
+			else if (curPcode.GetF() == Operator::RED) 
 			{
 				//RED 0 0 从命令行读入一个输入置于栈顶
 				cout << "请输入一个数字（int）:" << endl;
@@ -230,7 +230,7 @@ public:
 			}
 		}while (npc != 0 && npc<pcode.size());
 	}
-	int GetLsp(int sp, int level)
+	int GetSL(int sp, int level)
 	{
 		int lsp = sp;
 		while (level > 0)
