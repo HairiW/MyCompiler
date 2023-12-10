@@ -141,6 +141,7 @@
   <ItemGroup>
     <ClInclude Include="AllPcode.h" />
     <ClInclude Include="AllSymbol.h" />
+    <ClInclude Include="Interpreter.h" />
     <ClInclude Include="LexAnalyzer.h" />
     <ClInclude Include="Operator.h" />
     <ClInclude Include="PerPcode.h" />

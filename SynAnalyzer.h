@@ -123,4 +123,5 @@ public:
 	void Id();//±êÊ¶·û
 	int	Error(int ecode, string str);
 	void Output();
+	AllPcode GetAllPcode();
 };

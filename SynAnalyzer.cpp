@@ -1014,3 +1014,7 @@ void Syntax_Analyzer::Output()
 {
 	allPcode.Output();
 }
+AllPcode Syntax_Analyzer::GetAllPcode()
+{
+	return allPcode;
+}
