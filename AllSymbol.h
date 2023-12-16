@@ -77,6 +77,14 @@ public:
 		}
 		return -1;
 	}
+	void Free(int level)//ÊÍ·Ålevel²ã·ûºÅ±í
+	{
+		for (int i = allSymbol.size() - 1; i >= 0; i--)
+		{
+			if (allSymbol[i].GetLevel() == level)
+				allSymbol.pop_back();
+		}
+	}
 	vector<PerSymbol> GetAllSymbol()
 	{
 		return allSymbol;

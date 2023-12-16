@@ -1,18 +1,18 @@
 program fibonacci; 
 var index,return,i;
 procedure fib(x);
-var i;
+var sum;
 begin
-    i:=0;
+    sum:=0;
     if x<2 then
         return:=x
     else
     begin
         call fib(x-1);
-        i:=i+return;
+        sum:=sum+return;
         call fib(x-2);
-        i:=i+return;
-        return:=i
+        sum:=sum+return;
+        return:=sum
     end
 end
 begin

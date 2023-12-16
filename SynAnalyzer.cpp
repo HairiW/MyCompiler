@@ -452,6 +452,7 @@ void Syntax_Analyzer::Proc()
 		Advance();
 		//level++;
 		Block();
+		allSymbol.Free(level);//退出procedure时需要释放该过程的符号表
 		dx = dx_temp;//恢复dx
 		level--;//恢复level
 		while (strToken == ";" && strToken_next == "procedure")
