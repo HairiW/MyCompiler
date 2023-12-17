@@ -714,7 +714,7 @@ void Syntax_Analyzer::Statement()
 
 					while (strToken != ")")
 					{
-						if (strToken == "," && (exp_first.count(strToken_next) || str_code_next == 2))
+						if (strToken == "," && (exp_first.count(strToken_next) || str_code_next == 2 || str_code_next == 1))
 						{
 							Advance();
 							Exp();
@@ -745,11 +745,11 @@ void Syntax_Analyzer::Statement()
 						Error(6, ")");
 				}
 			}
-			else if (tag == 4)
+			/*else if (tag == 4)
 			{
 				Error(7, "begin");
 				Statement();
-			}
+			}*/
 			else if (tag == 5)//read (<id>{£¬<id>})
 			{
 				Advance();
